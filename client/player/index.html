@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#0d0d14">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Lobos de la Oscuridad</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap');
+
+    :root {
+      --bg: #0d0d14;
+      --surface: #14141f;
+      --surface2: #1c1c2e;
+      --border: rgba(255,255,255,0.08);
+      --gold: #c9a84c;
+      --gold-dim: #8a7030;
+      --red: #c0392b;
+      --red-glow: rgba(192,57,43,0.3);
+      --wolf: #7b2d8b;
+      --wolf-glow: rgba(123,45,139,0.3);
+      --text: #e8e0d0;
+      --text-dim: #8a8070;
+      --radius: 12px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Crimson Text', serif;
+      font-size: 16px;
+      min-height: 100vh;
+      min-height: 100dvh;
+      overflow-x: hidden;
+    }
+
+    /* ─── Pantallas ────────────────────────────────────────────── */
+    .screen { display: none; flex-direction: column; min-height: 100dvh; padding: 0; animation: fadeIn 0.4s ease; }
+    .screen.active { display: flex; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+    /* ─── Header ───────────────────────────────────────────────── */
+    .game-header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .logo {
+      font-family: 'Cinzel', serif;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--gold);
+      letter-spacing: 1px;
+    }
+
+    .phase-badge {
+      font-size: 11px;
+      font-family: 'Cinzel', serif;
+      padding: 4px 10px;
+      border-radius: 20px;
+      background: rgba(201,168,76,0.15);
+      color: var(--gold);
+      border: 1px solid var(--gold-dim);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .phase-badge.night { background: rgba(123,45,139,0.2); color: #b06bc0; border-color: var(--wolf-glow); }
+    .phase-badge.danger { background: var(--red-glow); color: #e07068; border-color: rgba(192,57,43,0.5); }
+
+    /* ─── Pantalla de Lobby / Join ─────────────────────────────── */
+    #screen-join {
+      background: radial-gradient(ellipse at 50% 30%, #1a0a2e 0%, var(--bg) 70%);
+      justify-content: center;
+      align-items: center;
+      padding: 32px 24px;
+      gap: 24px;
+    }
+
+    .title-block { text-align: center; }
+
+    .title-main {
+      font-family: 'Cinzel', serif;
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--gold);
+      letter-spacing: 2px;
+      text-shadow: 0 0 30px rgba(201,168,76,0.4);
+      line-height: 1.2;
+    }
+
+    .title-sub {
+      font-size: 14px;
+      color: var(--text-dim);
+      margin-top: 8px;
+      letter-spacing: 2px;
+      font-family: 'Cinzel', serif;
+    }
+
+    .moon-icon { font-size: 48px; display: block; margin-bottom: 8px; filter: drop-shadow(0 0 20px rgba(201,168,76,0.6)); }
+
+    .input-group { width: 100%; max-width: 320px; display: flex; flex-direction: column; gap: 12px; }
+
+    .field-label {
+      font-size: 11px;
+      color: var(--text-dim);
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      font-family: 'Cinzel', serif;
+      margin-bottom: 4px;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-family: 'Crimson Text', serif;
+      font-size: 18px;
+      padding: 14px 16px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input[type="text"]:focus { border-color: var(--gold-dim); }
+    input[type="text"]::placeholder { color: var(--text-dim); font-style: italic; }
+
+    .btn-primary {
+      width: 100%;
+      background: linear-gradient(135deg, #8a5c1a, var(--gold));
+      border: none;
+      border-radius: var(--radius);
+      color: #0d0d14;
+      font-family: 'Cinzel', serif;
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      padding: 16px;
+      cursor: pointer;
+      text-transform: uppercase;
+      transition: filter 0.2s, transform 0.1s;
+    }
+    .btn-primary:active { transform: scale(0.98); filter: brightness(0.9); }
+    .btn-primary:disabled { filter: grayscale(1) opacity(0.5); pointer-events: none; }
+
+    .status-msg { font-size: 13px; color: var(--text-dim); text-align: center; min-height: 20px; font-style: italic; }
+    .status-msg.error { color: #e07068; }
+    .status-msg.success { color: #6db86d; }
+
+    /* ─── Lobby de Espera ───────────────────────────────────────── */
+    #screen-lobby { padding: 0; }
+
+    .lobby-body { flex: 1; padding: 20px 16px; display: flex; flex-direction: column; gap: 16px; }
+
+    .player-list { display: flex; flex-direction: column; gap: 8px; }
+
+    .player-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--surface2);
+      border-radius: var(--radius);
+      padding: 12px 14px;
+      border: 1px solid var(--border);
+      animation: slideIn 0.3s ease;
+    }
+    @keyframes slideIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: none; } }
+
+    .player-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--wolf), #4a1a6e);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-family: 'Cinzel', serif;
+      color: #e0c0f0;
+      flex-shrink: 0;
+    }
+
+    .player-name { font-size: 17px; color: var(--text); flex: 1; }
+    .player-you { font-size: 11px; color: var(--gold); font-family: 'Cinzel', serif; letter-spacing: 1px; }
+
+    .waiting-msg {
+      text-align: center;
+      color: var(--text-dim);
+      font-style: italic;
+      font-size: 15px;
+      padding: 20px 0;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 14px; height: 14px;
+      border: 2px solid var(--border);
+      border-top-color: var(--gold);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      vertical-align: middle;
+      margin-right: 8px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ─── Reveal de Rol ─────────────────────────────────────────── */
+    #screen-role {
+      justify-content: center;
+      align-items: center;
+      padding: 32px 24px;
+      background: radial-gradient(ellipse at 50% 50%, #1a0a2e 0%, var(--bg) 80%);
+    }
+
+    .role-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 32px 24px;
+      width: 100%;
+      max-width: 340px;
+      text-align: center;
+      animation: roleReveal 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    @keyframes roleReveal { from { opacity: 0; transform: scale(0.6) rotateY(90deg); } to { opacity: 1; transform: none; } }
+
+    .role-icon { font-size: 72px; margin-bottom: 16px; display: block; }
+    .role-title { font-family: 'Cinzel', serif; font-size: 24px; font-weight: 700; margin-bottom: 8px; }
+    .role-title.wolf { color: #c090d8; }
+    .role-title.village { color: var(--gold); }
+    .role-flavor { color: var(--text-dim); font-size: 15px; line-height: 1.6; font-style: italic; }
+    .role-abilities { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); text-align: left; }
+    .ability-item { display: flex; gap: 8px; margin-bottom: 8px; font-size: 14px; }
+    .ability-dot { color: var(--gold); flex-shrink: 0; }
+
+    /* ─── Fase de Discusion ───────────────────────────────────────── */
+    #screen-discussion { overflow: hidden; }
+
+    .day-content { flex: 1; display: flex; flex-direction: column; overflow-y: auto; padding: 16px; gap: 12px; }
+
+    /* ─── Fase Nocturna ─────────────────────────────────────────── */
+    #screen-night {
+      background: radial-gradient(ellipse at 50% 100%, #12001a 0%, var(--bg) 60%);
+      padding: 0;
+    }
+
+    .night-content { flex: 1; overflow-y: auto; padding: 20px 16px; }
+
+    .night-title {
+      font-family: 'Cinzel', serif;
+      font-size: 20px;
+      color: #b06bc0;
+      text-align: center;
+      margin-bottom: 8px;
+    }
+
+    .night-instruction {
+      color: var(--text-dim);
+      text-align: center;
+      font-size: 15px;
+      font-style: italic;
+      margin-bottom: 24px;
+      line-height: 1.5;
+    }
+
+    .target-list { display: flex; flex-direction: column; gap: 8px; }
+
+    .target-btn {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-family: 'Crimson Text', serif;
+      font-size: 18px;
+      padding: 16px;
+      cursor: pointer;
+      text-align: left;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      transition: all 0.2s;
+      width: 100%;
+    }
+    .target-btn:active, .target-btn.selected { background: rgba(176,107,192,0.2); border-color: rgba(176,107,192,0.5); }
+
+    .target-avatar {
+      width: 40px; height: 40px; border-radius: 50%;
+      background: var(--surface);
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Cinzel', serif; font-size: 14px; color: var(--text-dim);
+      flex-shrink: 0;
+    }
+
+    .confirm-action-btn {
+      width: 100%;
+      margin-top: 20px;
+      background: rgba(176,107,192,0.15);
+      border: 1px solid rgba(176,107,192,0.4);
+      border-radius: var(--radius);
+      color: #c090d8;
+      font-family: 'Cinzel', serif;
+      font-size: 15px;
+      font-weight: 600;
+      padding: 16px;
+      cursor: pointer;
+      letter-spacing: 1px;
+    }
+
+    /* ─── Votación ──────────────────────────────────────────────── */
+    #screen-vote { padding: 0; }
+    .vote-content { flex: 1; overflow-y: auto; padding: 20px 16px; }
+    .vote-title { font-family: 'Cinzel', serif; font-size: 20px; color: var(--red); text-align: center; margin-bottom: 24px; }
+    .target-btn.vote-selected { background: var(--red-glow); border-color: rgba(192,57,43,0.6); }
+    .vote-confirm {
+      width: 100%; margin-top: 20px;
+      background: rgba(192,57,43,0.15);
+      border: 1px solid rgba(192,57,43,0.4);
+      border-radius: var(--radius);
+      color: #e07068;
+      font-family: 'Cinzel', serif; font-size: 15px; font-weight: 600;
+      padding: 16px; cursor: pointer; letter-spacing: 1px;
+    }
+
+    .voted-msg {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--text-dim);
+      font-style: italic;
+      font-size: 18px;
+    }
+    .votes-count { font-size: 14px; text-align: center; color: var(--text-dim); margin-top: 16px; }
+
+    /* ─── Muerto ────────────────────────────────────────────────── */
+    #screen-dead {
+      justify-content: center;
+      align-items: center;
+      padding: 32px 24px;
+      background: radial-gradient(ellipse at 50% 50%, #0d0010 0%, var(--bg) 80%);
+    }
+
+    .dead-card { text-align: center; max-width: 300px; }
+    .dead-icon { font-size: 80px; margin-bottom: 20px; display: block; opacity: 0.7; }
+    .dead-title { font-family: 'Cinzel', serif; font-size: 22px; color: var(--text-dim); margin-bottom: 12px; }
+    .dead-msg { color: var(--text-dim); font-size: 15px; font-style: italic; line-height: 1.6; }
+
+    /* ─── Timer ─────────────────────────────────────────────────── */
+    .timer-bar {
+      height: 3px;
+      background: var(--border);
+      overflow: hidden;
+    }
+    .timer-fill {
+      height: 100%;
+      background: var(--gold);
+      transition: width 1s linear;
+    }
+    .timer-fill.urgent { background: var(--red); }
+
+    /* ─── Notificación Toast ─────────────────────────────────────── */
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 20px;
+      font-size: 15px;
+      color: var(--text);
+      z-index: 1000;
+      transition: transform 0.3s ease;
+      max-width: calc(100vw - 32px);
+      text-align: center;
+      white-space: nowrap;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body>
+
+<!-- ─── PANTALLA: UNIRSE ──────────────────────────────────────────────────── -->
+<div id="screen-join" class="screen active">
+  <span class="moon-icon">🌕</span>
+  <div class="title-block">
+    <div class="title-main">Lobos de<br>la Oscuridad</div>
+    <div class="title-sub">✦ Castronegro × Among Us ✦</div>
+  </div>
+  <div class="input-group">
+    <div>
+      <div class="field-label">Tu nombre</div>
+      <input type="text" id="player-name" placeholder="¿Cómo te llaman?" maxlength="20" autocomplete="off">
+    </div>
+    <div id="room-code-wrap">
+      <div class="field-label">Código de sala</div>
+      <input type="text" id="room-code" placeholder="Ej: AB3CD" maxlength="5" autocomplete="off" style="text-transform:uppercase;letter-spacing:4px;font-size:22px;">
+    </div>
+    <button class="btn-primary" id="btn-join">⚔ Entrar al Pueblo</button>
+    <div class="status-msg" id="join-status"></div>
+  </div>
+</div>
+
+<!-- ─── PANTALLA: LOBBY ──────────────────────────────────────────────────── -->
+<div id="screen-lobby" class="screen">
+  <div class="game-header">
+    <span class="logo">🐺 Lobos de la Oscuridad</span>
+    <span class="phase-badge" id="lobby-code-badge">---</span>
+  </div>
+  <div class="lobby-body">
+    <div class="waiting-msg">
+      <span class="spinner"></span>Esperando al Narrador...
+    </div>
+    <div class="player-list" id="player-list"></div>
+  </div>
+</div>
+
+<!-- ─── PANTALLA: REVELACIÓN DE ROL ─────────────────────────────────────── -->
+<div id="screen-role" class="screen">
+  <div class="role-card" id="role-card">
+    <span class="role-icon" id="role-icon">🎭</span>
+    <div class="role-title" id="role-title">Tu rol</div>
+    <div class="role-flavor" id="role-flavor">Descubriendo tu destino...</div>
+    <div class="role-abilities" id="role-abilities"></div>
+  </div>
+</div>
+
+<!-- ─── PANTALLA: DISCUSION ─────────────────────────────────────────────── -->
+<div id="screen-discussion" class="screen">
+  <div class="game-header">
+    <span class="logo">📢 Discusión</span>
+    <span class="phase-badge" id="discussion-phase-badge">Día</span>
+  </div>
+  <div class="timer-bar"><div class="timer-fill" id="discussion-timer-fill" style="width:100%"></div></div>
+  <div class="day-content">
+    <div class="waiting-msg">Debatan y preparen su voto.</div>
+    <div id="alive-players-day" class="player-list"></div>
+  </div>
+</div>
+
+<!-- ─── PANTALLA: NOCHE ──────────────────────────────────────────────────── -->
+<div id="screen-night" class="screen">
+  <div class="game-header">
+    <span class="logo">🌑 Fase de Noche</span>
+    <span class="phase-badge night" id="night-badge">Noche</span>
+  </div>
+  <div class="night-content" id="night-content">
+    <div class="night-title" id="night-title">La oscuridad cae...</div>
+    <div class="night-instruction" id="night-instruction">Espera tu turno.</div>
+    <div class="target-list" id="night-targets"></div>
+    <button class="confirm-action-btn" id="btn-night-confirm" style="display:none">
+      ✓ Confirmar acción
+    </button>
+  </div>
+</div>
+
+<!-- ─── PANTALLA: VOTACIÓN ───────────────────────────────────────────────── -->
+<div id="screen-vote" class="screen">
+  <div class="game-header">
+    <span class="logo">⚖️ Votación</span>
+    <span class="phase-badge danger">Secreto</span>
+  </div>
+  <div class="timer-bar"><div class="timer-fill urgent" id="vote-timer-fill" style="width:100%"></div></div>
+  <div class="vote-content">
+    <div class="vote-title">¿A quién eliminas?</div>
+    <div id="vote-targets" class="target-list"></div>
+    <button class="vote-confirm" id="btn-vote-confirm" style="display:none">
+      🗳 Enviar Voto
+    </button>
+    <div id="vote-status" class="voted-msg" style="display:none">
+      Voto emitido. Esperando a los demás...
+    </div>
+    <div class="votes-count" id="votes-count"></div>
+  </div>
+</div>
+
+<!-- ─── PANTALLA: MUERTO ─────────────────────────────────────────────────── -->
+<div id="screen-dead" class="screen">
+  <div class="dead-card">
+    <span class="dead-icon">💀</span>
+    <div class="dead-title">Has muerto</div>
+    <div class="dead-msg" id="dead-msg">Tu alma vaga por el pueblo. Observa en silencio el destino de los vivos.</div>
+  </div>
+</div>
+
+<!-- ─── TOAST GLOBAL ─────────────────────────────────────────────────────── -->
+<div class="toast" id="toast"></div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="/player.js"></script>
+</body>
+</html>

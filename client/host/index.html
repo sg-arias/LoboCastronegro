@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lobos de la Oscuridad — Host</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap');
+
+    :root {
+      --bg: #08080f;
+      --surface: #12121c;
+      --surface2: #1a1a28;
+      --border: rgba(255,255,255,0.07);
+      --gold: #c9a84c;
+      --gold-dim: #7a6530;
+      --wolf: #9040a8;
+      --text: #ddd8c8;
+      --text-dim: #7a7568;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Crimson Text', serif;
+      height: 100vh;
+      overflow: hidden;
+      display: grid;
+      grid-template-rows: 64px 1fr;
+      grid-template-columns: 280px 1fr 260px;
+    }
+
+    /* ─── HEADER ─────────────────────────────────────────────────── */
+    header {
+      grid-column: 1 / -1;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+    }
+
+    .header-logo { font-family: 'Cinzel', serif; font-size: 18px; font-weight: 700; color: var(--gold); letter-spacing: 2px; }
+    .header-phase { font-family: 'Cinzel', serif; font-size: 22px; color: var(--text); letter-spacing: 3px; }
+    .header-night { font-size: 14px; color: var(--text-dim); font-family: 'Cinzel', serif; }
+
+    /* ─── PANEL IZQUIERDO — Jugadores ────────────────────────────── */
+    .panel-left {
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 16px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .panel-title {
+      font-family: 'Cinzel', serif;
+      font-size: 11px;
+      color: var(--text-dim);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .player-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      transition: border-color 0.3s;
+    }
+
+    .player-card.wolf { border-color: rgba(144,64,168,0.5); }
+    .player-card.dead { opacity: 0.35; filter: grayscale(1); }
+
+    .player-avatar {
+      width: 34px; height: 34px; border-radius: 50%;
+      background: var(--surface);
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Cinzel', serif; font-size: 12px; color: var(--text-dim);
+      flex-shrink: 0;
+    }
+    .player-avatar.wolf { background: rgba(144,64,168,0.2); color: #c090d8; }
+
+    .player-info { flex: 1; min-width: 0; }
+    .player-name { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .player-role { font-size: 11px; color: var(--text-dim); font-family: 'Cinzel', serif; }
+    .player-role.wolf { color: #9060b8; }
+
+    .player-status { font-size: 18px; }
+
+    /* ─── PANEL CENTRAL — Mapa / Estado ─────────────────────────── */
+    .panel-center {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      padding: 20px;
+      gap: 16px;
+    }
+
+    .map-container {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    #game-map { width: 100%; height: 100%; }
+
+    .phase-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(8,8,15,0.85);
+      gap: 16px;
+    }
+    .phase-overlay.hidden { display: none; }
+
+    .overlay-title { font-family: 'Cinzel', serif; font-size: 36px; color: var(--gold); letter-spacing: 4px; }
+    .overlay-sub { color: var(--text-dim); font-size: 18px; font-style: italic; }
+
+    .timer-ring-wrap { margin: 8px 0; }
+
+    /* ─── Controles del Host ─────────────────────────────────────── */
+    .host-controls {
+      display: flex;
+      gap: 10px;
+    }
+
+    .btn-host {
+      flex: 1;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text-dim);
+      font-family: 'Cinzel', serif;
+      font-size: 12px;
+      padding: 10px 8px;
+      cursor: pointer;
+      letter-spacing: 1px;
+      transition: all 0.2s;
+    }
+    .btn-host:hover { border-color: var(--gold-dim); color: var(--gold); }
+    .btn-host.primary { border-color: var(--gold-dim); color: var(--gold); background: rgba(201,168,76,0.05); }
+    .btn-host.primary:hover { background: rgba(201,168,76,0.12); }
+
+    /* ─── PANEL DERECHO — Sala / Votaciones ──────────────────────── */
+    .panel-right {
+      background: var(--surface);
+      border-left: 1px solid var(--border);
+      padding: 16px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .qr-container { text-align: center; }
+    .qr-img { width: 140px; height: 140px; border-radius: 8px; background: white; padding: 4px; }
+    .qr-label { font-size: 12px; color: var(--text-dim); margin-top: 6px; font-family: 'Cinzel', serif; }
+
+    .vote-results { display: flex; flex-direction: column; gap: 6px; }
+    .vote-bar { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+    .vote-bar-name { width: 80px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-dim); }
+    .vote-bar-track { flex: 1; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+    .vote-bar-fill { height: 100%; background: var(--gold); border-radius: 3px; transition: width 0.5s ease; }
+    .vote-bar-fill.wolf-fill { background: var(--wolf); }
+    .vote-bar-count { width: 20px; text-align: right; color: var(--text-dim); }
+
+    .event-log { flex: 1; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+    .log-item { color: var(--text-dim); font-style: italic; padding: 4px 0; border-bottom: 1px solid var(--border); }
+    .log-item:last-child { border-bottom: none; color: var(--text); }
+
+    /* ─── Lobby Inicial ──────────────────────────────────────────── */
+    #lobby-screen {
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(ellipse at 50% 30%, #1a0a2e 0%, var(--bg) 70%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 24px;
+      z-index: 100;
+    }
+    #lobby-screen.hidden { display: none; }
+
+    .lobby-title { font-family: 'Cinzel', serif; font-size: 42px; font-weight: 700; color: var(--gold); letter-spacing: 6px; text-align: center; }
+    .lobby-sub { color: var(--text-dim); font-size: 18px; letter-spacing: 2px; font-family: 'Cinzel', serif; }
+    .room-code-display { font-family: 'Cinzel', serif; font-size: 56px; font-weight: 700; color: var(--gold); letter-spacing: 16px; }
+    #lobby-qr { width: 200px; height: 200px; background: white; border-radius: 12px; padding: 8px; }
+    .lobby-player-count { color: var(--text-dim); font-size: 18px; }
+
+    .btn-start {
+      background: linear-gradient(135deg, #7a5010, var(--gold));
+      border: none;
+      border-radius: 10px;
+      color: #0d0d14;
+      font-family: 'Cinzel', serif;
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 4px;
+      padding: 18px 48px;
+      cursor: pointer;
+      transition: filter 0.2s, transform 0.1s;
+    }
+    .btn-start:active { transform: scale(0.98); }
+    .btn-start:disabled { filter: grayscale(1) opacity(0.5); cursor: not-allowed; }
+
+    .lobby-players { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; max-width: 600px; }
+    .lobby-player-pill {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 8px 16px;
+      font-size: 16px;
+    }
+
+    .lobby-config {
+      background: rgba(18,18,28,0.9);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      width: min(520px, 90vw);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .config-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .config-field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 13px;
+      color: var(--text-dim);
+    }
+
+    .config-field input[type="number"] {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      padding: 8px 10px;
+      font-family: 'Cinzel', serif;
+    }
+
+    .config-checkboxes {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      color: var(--text-dim);
+      font-size: 13px;
+    }
+
+    .btn-create {
+      background: linear-gradient(135deg, #7a5010, var(--gold));
+      border: none;
+      border-radius: 10px;
+      color: #0d0d14;
+      font-family: 'Cinzel', serif;
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      padding: 12px 20px;
+      cursor: pointer;
+    }
+
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+
+<!-- ─── LOBBY INICIAL ──────────────────────────────────────────────────────── -->
+<div id="lobby-screen">
+  <div class="lobby-title">🐺 Lobos de la Oscuridad</div>
+  <div class="lobby-sub">Configura la partida antes de crear la sala</div>
+
+  <div class="lobby-config" id="lobby-config">
+    <div class="panel-title">Configuración</div>
+    <div class="config-grid">
+      <label class="config-field">
+        Jugadores (max)
+        <input type="number" id="config-players" min="3" max="20" value="8">
+      </label>
+      <label class="config-field">
+        Lobos
+        <input type="number" id="config-wolves" min="1" max="3" value="1">
+      </label>
+    </div>
+    <div class="config-checkboxes">
+      <label><input type="checkbox" id="config-witch" checked> Bruja</label>
+      <label><input type="checkbox" id="config-seer" checked> Vidente</label>
+    </div>
+    <button class="btn-create" id="btn-create">Crear sala</button>
+  </div>
+
+  <div id="lobby-qr-block" class="hidden">
+    <div class="lobby-sub">Escanea el código QR para unirte</div>
+    <img id="lobby-qr" src="" alt="QR">
+    <div class="room-code-display" id="room-code-display">---</div>
+    <div class="lobby-players" id="lobby-players"></div>
+    <div class="lobby-player-count" id="lobby-player-count">0 jugadores conectados</div>
+    <button class="btn-start" id="btn-start" disabled>⚔ COMENZAR PARTIDA</button>
+  </div>
+</div>
+
+<!-- ─── INTERFAZ PRINCIPAL ────────────────────────────────────────────────── -->
+
+<header>
+  <div class="header-logo">🐺 Lobos de la Oscuridad</div>
+  <div class="header-phase" id="header-phase">LOBBY</div>
+  <div class="header-night" id="header-night">Sala: ---</div>
+</header>
+
+<div class="panel-left">
+  <div class="panel-title">Jugadores</div>
+  <div id="host-player-list"></div>
+</div>
+
+<div class="panel-center">
+  <div class="map-container">
+    <svg id="game-map" viewBox="0 0 800 500" xmlns="http://www.w3.org/2000/svg">
+      <!-- Mapa placeholder -->
+      <rect width="800" height="500" fill="#10101a"/>
+      <!-- Áreas del mapa -->
+      <g opacity="0.6">
+        <ellipse cx="400" cy="250" rx="80" ry="60" fill="#1e1e30" stroke="#30306050" stroke-width="2"/>
+        <text x="400" y="255" text-anchor="middle" fill="#c9a84c" font-family="Cinzel" font-size="11">Plaza Central</text>
+        <ellipse cx="150" cy="180" rx="70" ry="50" fill="#1a2010" stroke="#30402050" stroke-width="2"/>
+        <text x="150" y="185" text-anchor="middle" fill="#6a9a4c" font-family="Cinzel" font-size="11">Bosque</text>
+        <ellipse cx="650" cy="140" rx="65" ry="45" fill="#202018" stroke="#40403050" stroke-width="2"/>
+        <text x="650" y="145" text-anchor="middle" fill="#9a9a6c" font-family="Cinzel" font-size="11">Molino</text>
+        <ellipse cx="600" cy="380" rx="65" ry="45" fill="#201a18" stroke="#40302050" stroke-width="2"/>
+        <text x="600" y="385" text-anchor="middle" fill="#8a6a4c" font-family="Cinzel" font-size="11">Posada</text>
+        <ellipse cx="200" cy="400" rx="60" ry="40" fill="#14141e" stroke="#20203050" stroke-width="2"/>
+        <text x="200" y="405" text-anchor="middle" fill="#6a6a7c" font-family="Cinzel" font-size="11">Cementerio</text>
+        <ellipse cx="400" cy="90" rx="60" ry="40" fill="#1a1e28" stroke="#20283050" stroke-width="2"/>
+        <text x="400" y="95" text-anchor="middle" fill="#7a8a9c" font-family="Cinzel" font-size="11">Iglesia</text>
+      </g>
+      <!-- Los jugadores se renderizan dinámicamente -->
+      <g id="map-players"></g>
+    </svg>
+
+    <div class="phase-overlay" id="phase-overlay">
+      <div class="overlay-title" id="overlay-title">🌕 LOBBY</div>
+      <div class="overlay-sub" id="overlay-sub">Esperando jugadores...</div>
+    </div>
+  </div>
+
+  <div class="host-controls hidden"></div>
+</div>
+
+<div class="panel-right">
+  <div>
+    <div class="panel-title">Sala</div>
+    <div class="qr-container">
+      <img class="qr-img" id="host-qr" src="" alt="QR Jugadores">
+      <div class="qr-label" id="host-room-code">CARGANDO...</div>
+    </div>
+  </div>
+
+  <div>
+    <div class="panel-title">Votos</div>
+    <div class="vote-results" id="vote-results"></div>
+  </div>
+
+  <div style="flex:1;display:flex;flex-direction:column">
+    <div class="panel-title">Eventos</div>
+    <div class="event-log" id="event-log">
+      <div class="log-item">Servidor iniciado...</div>
+    </div>
+  </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+(function() {
+  const socket = io();
+  let roomCode = null;
+  let allPlayers = [];
+  let voteData = {};
+
+  let minPlayers = 3;
+  let maxPlayers = 8;
+
+  const PHASE_LABELS = {
+    lobby: '🌕 LOBBY',
+    night: '🌑 NOCHE',
+    discussion: '📢 DISCUSIÓN',
+    voting: '⚖ VOTACIÓN',
+    game_over: '🏁 FIN DEL JUEGO',
+  };
+
+  function getMaxWolves(playerCount) {
+    return Math.max(1, Math.floor((playerCount - 1) / 2));
+  }
+
+  function syncWolfLimit() {
+    const playerInput = document.getElementById('config-players');
+    const wolvesInput = document.getElementById('config-wolves');
+    const players = Number.parseInt(playerInput.value, 10) || minPlayers;
+    const maxWolves = getMaxWolves(players);
+    wolvesInput.max = String(maxWolves);
+    if (Number.parseInt(wolvesInput.value, 10) > maxWolves) {
+      wolvesInput.value = String(maxWolves);
+    }
+  }
+
+  function getSettingsFromUI() {
+    const players = Math.max(minPlayers, Number.parseInt(document.getElementById('config-players').value, 10) || minPlayers);
+    const maxWolves = getMaxWolves(players);
+    const wolves = Math.min(maxWolves, Math.max(1, Number.parseInt(document.getElementById('config-wolves').value, 10) || 1));
+
+    return {
+      maxPlayers: players,
+      wolves,
+      enableWitch: document.getElementById('config-witch').checked,
+      enableSeer: document.getElementById('config-seer').checked,
+    };
+  }
+
+  function applyRoomConfig(settings) {
+    maxPlayers = settings.maxPlayers;
+    document.getElementById('lobby-qr-block').classList.remove('hidden');
+    document.getElementById('lobby-config').classList.add('hidden');
+    document.getElementById('btn-start').disabled = allPlayers.length < minPlayers;
+  }
+
+  document.getElementById('config-players').addEventListener('input', () => {
+    syncWolfLimit();
+  });
+  document.getElementById('config-wolves').addEventListener('input', () => {
+    syncWolfLimit();
+  });
+
+  document.getElementById('btn-create').addEventListener('click', () => {
+    const settings = getSettingsFromUI();
+    socket.emit('client:room:create', { settings }, (response) => {
+      if (response?.success) {
+        roomCode = response.roomCode;
+        applyRoomConfig(response.settings || settings);
+        document.getElementById('room-code-display').textContent = roomCode;
+        document.getElementById('header-night').textContent = `Sala: ${roomCode}`;
+        document.getElementById('host-room-code').textContent = roomCode;
+
+        fetch(`/qr?room=${roomCode}`)
+          .then(r => r.json())
+          .then(data => {
+            document.getElementById('lobby-qr').src = data.qr;
+            document.getElementById('host-qr').src = data.qr;
+            addLog(`Sala ${roomCode} creada — URL: ${data.url}`);
+          })
+          .catch(() => {
+            addLog('No se pudo generar el QR. Verifica el servidor.');
+          });
+      } else {
+        alert(response?.message || 'No se pudo crear la sala.');
+      }
+    });
+  });
+
+  // ─── Eventos del servidor ────────────────────────────────────────────────
+  socket.on('server:room:update', ({ players, maxPlayers: maxPlayersFromServer }) => {
+    allPlayers = players;
+    updateLobbyPlayers(players);
+    updateHostPlayerList(players);
+    document.getElementById('lobby-player-count').textContent = `${players.length} jugadores conectados`;
+    if (Number.isFinite(maxPlayersFromServer)) {
+      maxPlayers = maxPlayersFromServer;
+    }
+    document.getElementById('btn-start').disabled = players.length < minPlayers;
+    addLog(`Jugadores: ${players.length}`);
+  });
+
+  socket.on('server:game:phase', ({ phase, publicState }) => {
+    const label = PHASE_LABELS[phase] || phase.toUpperCase();
+    document.getElementById('header-phase').textContent = label;
+    document.getElementById('overlay-title').textContent = label;
+
+    if (publicState?.nightNumber > 0) {
+      document.getElementById('header-night').textContent = `Sala: ${roomCode} | Noche ${publicState.nightNumber}`;
+    }
+
+    const overlaySubTexts = {
+      discussion: 'Debate oral — la votación abrirá pronto',
+      voting: 'Votación secreta en progreso...',
+      night: 'Los roles especiales actúan en la oscuridad...',
+      game_over: '¡El juego ha terminado!',
+    };
+    document.getElementById('overlay-sub').textContent = overlaySubTexts[phase] || '';
+
+    document.getElementById('phase-overlay').classList.toggle('hidden', phase === 'game_over');
+
+    addLog(`Fase → ${label}`);
+
+    if (publicState) updateHostPlayerList(publicState.players || allPlayers);
+  });
+
+  socket.on('server:vote:count', ({ votesIn, totalVoters }) => {
+    addLog(`Votos: ${votesIn}/${totalVoters}`);
+  });
+
+  socket.on('server:vote:result', (result) => {
+    renderVoteResults(result.tally, allPlayers);
+    if (result.eliminated) {
+      addLog(`⚖ Eliminado por votación: ${result.eliminatedName || result.eliminated}`);
+    } else {
+      addLog('⚖ Empate — nadie eliminado');
+    }
+  });
+  socket.on('server:night:results', ({ killed }) => {
+    killed.forEach(k => addLog(`🌑 Muerto: ${k.playerId} (${k.cause})`));
+  });
+  socket.on('server:game:over', ({ winner, reason }) => {
+    addLog(`🏁 Ganador: ${winner} — ${reason}`);
+  });
+
+  // ─── UI Functions ────────────────────────────────────────────────────────
+
+  function updateLobbyPlayers(players) {
+    const el = document.getElementById('lobby-players');
+    el.innerHTML = players.map(p =>
+      `<div class="lobby-player-pill">${p.name}</div>`
+    ).join('');
+  }
+
+  function updateHostPlayerList(players) {
+    const el = document.getElementById('host-player-list');
+    el.innerHTML = players.map(p => {
+      const isWolf = p.team === 'wolves';
+      const isAlive = p.isAlive !== false;
+      const initials = (p.name || '?').substring(0, 2).toUpperCase();
+      return `
+        <div class="player-card ${isWolf ? 'wolf' : ''} ${!isAlive ? 'dead' : ''}">
+          <div class="player-avatar ${isWolf ? 'wolf' : ''}">${initials}</div>
+          <div class="player-info">
+            <div class="player-name">${p.name}</div>
+            <div class="player-role ${isWolf ? 'wolf' : ''}">${p.role || '???'}</div>
+          </div>
+          <div class="player-status">${isAlive ? '🟢' : '💀'}</div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function renderVoteResults(tally, players) {
+    const el = document.getElementById('vote-results');
+    const totalVotes = Object.values(tally).reduce((a, b) => a + b, 0);
+    const max = Math.max(...Object.values(tally), 1);
+
+    el.innerHTML = Object.entries(tally)
+      .sort(([, a], [, b]) => b - a)
+      .map(([id, count]) => {
+        const player = players.find(p => p.id === id);
+        const pct = Math.round((count / max) * 100);
+        return `
+          <div class="vote-bar">
+            <span class="vote-bar-name">${player?.name || id}</span>
+            <div class="vote-bar-track"><div class="vote-bar-fill" style="width:${pct}%"></div></div>
+            <span class="vote-bar-count">${count}</span>
+          </div>
+        `;
+      }).join('');
+  }
+
+  function addLog(msg) {
+    const el = document.getElementById('event-log');
+    const item = document.createElement('div');
+    item.className = 'log-item';
+    item.textContent = `${new Date().toLocaleTimeString()} — ${msg}`;
+    el.insertBefore(item, el.firstChild);
+    if (el.children.length > 20) el.lastChild.remove();
+  }
+
+  // ─── Controles del Host ──────────────────────────────────────────────────
+
+  document.getElementById('btn-start').addEventListener('click', () => {
+    socket.emit('client:game:start', { roomCode }, (r) => {
+      if (r?.success) {
+        document.getElementById('lobby-screen').classList.add('hidden');
+      } else {
+        alert(r?.message || 'No se puede iniciar la partida.');
+      }
+    });
+  });
+
+  // Sincronizar configuracion desde el servidor
+  fetch('/config')
+    .then(r => r.json())
+    .then(cfg => {
+      if (Number.isFinite(cfg?.minPlayers)) {
+        minPlayers = cfg.minPlayers;
+        document.getElementById('config-players').min = String(minPlayers);
+        if (Number.parseInt(document.getElementById('config-players').value, 10) < minPlayers) {
+          document.getElementById('config-players').value = String(minPlayers);
+        }
+        syncWolfLimit();
+        document.getElementById('btn-start').disabled = allPlayers.length < minPlayers;
+      }
+    })
+    .catch(() => {
+      addLog('No se pudo cargar la configuracion del servidor.');
+    });
+
+})();
+</script>
+</body>
+</html>
