@@ -107,14 +107,41 @@ httpServer.listen(PORT, '0.0.0.0', async () => {
 
 function getLocalIP() {
   const interfaces = os.networkInterfaces();
+
   for (const name of Object.keys(interfaces)) {
+
+    // Ignorar interfaces virtuales
+    const lower = name.toLowerCase();
+
+    if (
+      lower.includes('virtual') ||
+      lower.includes('vmware') ||
+      lower.includes('vbox') ||
+      lower.includes('hyper-v')
+    ) {
+      continue;
+    }
+
     for (const iface of interfaces[name]) {
-      // Buscar IPv4 no-loopback
-      if (iface.family === 'IPv4' && !iface.internal) {
-        return iface.address;
+
+      if (
+        iface.family === 'IPv4' &&
+        !iface.internal &&
+        !iface.address.startsWith('169.254')
+      ) {
+
+        // Preferir IPs típicas LAN
+        if (
+          iface.address.startsWith('192.168.') ||
+          iface.address.startsWith('10.') ||
+          iface.address.startsWith('172.')
+        ) {
+          return iface.address;
+        }
       }
     }
   }
+
   return '127.0.0.1';
 }
 
