@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Debug — Lobos de la Oscuridad</title>
+  <style>
+    :root {
+      --bg: #0b0f1f;
+      --surface: #12172b;
+      --surface2: #1a2340;
+      --border: rgba(255,255,255,0.08);
+      --red: #e04b4b;
+      --blue: #3c66c9;
+      --text: #e6e6f4;
+      --text-dim: #8a93b4;
+      --radius: 10px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #10162d, var(--bg));
+      color: var(--text);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    h1 {
+      font-size: 20px;
+      letter-spacing: 1px;
+    }
+
+    .btn {
+      background: linear-gradient(135deg, var(--red), var(--blue));
+      color: #0b0f1f;
+      border: none;
+      border-radius: var(--radius);
+      padding: 10px 14px;
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+      min-height: 200px;
+    }
+
+    .panel h2 {
+      font-size: 14px;
+      color: var(--text-dim);
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+
+    .room-item {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px;
+      margin-bottom: 10px;
+      background: var(--surface2);
+    }
+
+    .room-title {
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .room-meta {
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-bottom: 8px;
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .actions button {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 6px 10px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+
+    .actions button.danger {
+      border-color: rgba(224,75,75,0.6);
+      color: #ffb2b2;
+    }
+
+    .log-list {
+      max-height: 420px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .log-item {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 12px;
+      color: var(--text-dim);
+      background: var(--surface2);
+    }
+
+    .log-item strong { color: var(--text); }
+
+    @media (max-width: 900px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Debug — Lobos de la Oscuridad</h1>
+    <button class="btn" id="btn-refresh">Actualizar</button>
+  </header>
+
+  <div class="grid">
+    <section class="panel">
+      <h2>Salas activas</h2>
+      <div id="rooms"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Acciones</h2>
+      <div class="log-list" id="logs"></div>
+    </section>
+  </div>
+
+  <script>
+    const roomsEl = document.getElementById('rooms');
+    const logsEl = document.getElementById('logs');
+    let selectedRoom = null;
+
+    async function fetchRooms() {
+      const res = await fetch('/debug/rooms');
+      return res.json();
+    }
+
+    async function fetchLogs(roomCode) {
+      const res = await fetch(`/debug/rooms/${roomCode}/actions`);
+      return res.json();
+    }
+
+    async function addBots(roomCode) {
+      await fetch(`/debug/rooms/${roomCode}/bot`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ count: 1 })
+      });
+    }
+
+    async function closeRoom(roomCode) {
+      await fetch(`/debug/rooms/${roomCode}/close`, { method: 'POST' });
+    }
+
+    function renderRooms(rooms) {
+      roomsEl.innerHTML = '';
+      if (!rooms.length) {
+        roomsEl.innerHTML = '<div class="room-meta">No hay salas activas.</div>';
+        logsEl.innerHTML = '';
+        selectedRoom = null;
+        return;
+      }
+
+      rooms.forEach(room => {
+        const div = document.createElement('div');
+        div.className = 'room-item';
+        div.innerHTML = `
+          <div class="room-title">Sala ${room.code}</div>
+          <div class="room-meta">
+            Jugadores: ${room.players}/${room.maxPlayers} · Lobos: ${room.wolves}
+            · Bruja: ${room.enableWitch ? 'Si' : 'No'} · Vidente: ${room.enableSeer ? 'Si' : 'No'}
+          </div>
+          <div class="actions">
+            <button data-action="select">Ver acciones</button>
+            <button data-action="bot">+ Bot</button>
+            <button data-action="close" class="danger">Cerrar sala</button>
+          </div>
+        `;
+
+        div.querySelectorAll('button').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            const action = btn.dataset.action;
+            if (action === 'select') {
+              selectedRoom = room.code;
+              await refreshLogs();
+            }
+            if (action === 'bot') {
+              await addBots(room.code);
+              await refresh();
+            }
+            if (action === 'close') {
+              await closeRoom(room.code);
+              await refresh();
+            }
+          });
+        });
+
+        roomsEl.appendChild(div);
+      });
+    }
+
+    function renderLogs(logs) {
+      logsEl.innerHTML = '';
+      if (!logs.length) {
+        logsEl.innerHTML = '<div class="room-meta">No hay acciones registradas.</div>';
+        return;
+      }
+
+      logs.slice().reverse().forEach(log => {
+        const div = document.createElement('div');
+        div.className = 'log-item';
+        div.innerHTML = `<strong>${log.action}</strong> — ${log.message}`;
+        logsEl.appendChild(div);
+      });
+    }
+
+    async function refreshLogs() {
+      if (!selectedRoom) {
+        logsEl.innerHTML = '<div class="room-meta">Selecciona una sala.</div>';
+        return;
+      }
+      const data = await fetchLogs(selectedRoom);
+      renderLogs(data.actions || []);
+    }
+
+    async function refresh() {
+      const data = await fetchRooms();
+      renderRooms(data.rooms || []);
+      await refreshLogs();
+    }
+
+    document.getElementById('btn-refresh').addEventListener('click', refresh);
+
+    refresh();
+  </script>
+</body>
+</html>

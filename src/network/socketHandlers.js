@@ -52,6 +52,7 @@ function registerHandlers(io) {
       socket.join(`host:${roomCode}`); // Sala especial del host
 
       connectedPlayers.set(socket.id, { isHost: true, roomCode });
+      rooms.get(roomCode).addLog('room:create', `Sala creada por host ${socket.id}`);
       console.log(`[Room] Sala creada: ${roomCode}`);
       callback?.({ success: true, roomCode, settings: normalized });
     });
@@ -81,6 +82,7 @@ function registerHandlers(io) {
       };
 
       gameManager.state.addPlayer(player);
+      gameManager.addLog('player:join', `Jugador ${player.name} se unio a la sala`);
       socket.join(roomCode);
       connectedPlayers.set(socket.id, { playerId, roomCode, name: player.name });
 
@@ -109,6 +111,7 @@ function registerHandlers(io) {
         return callback?.({ success: false, message: `Mínimo ${MIN_PLAYERS} jugadores requeridos.` });
       }
 
+      gameManager.addLog('game:start', `Partida iniciada por host ${socket.id}`);
       gameManager.startGame();
       callback?.({ success: true });
     });
@@ -149,6 +152,8 @@ function registerHandlers(io) {
 
         // Notificar desconexión temporal al room (no eliminar al jugador todavía)
         if (session.roomCode) {
+          const gameManager = rooms.get(session.roomCode);
+          gameManager?.addLog('player:disconnect', `Jugador ${session.name || session.playerId} se desconecto`);
           io.to(session.roomCode).emit('server:player:disconnected', {
             playerId: session.playerId,
           });
@@ -158,4 +163,69 @@ function registerHandlers(io) {
   });
 }
 
-module.exports = { registerHandlers };
+function getRoomSummaries() {
+  return Array.from(rooms.entries()).map(([code, gameManager]) => ({
+    code,
+    players: gameManager.state.getAllPlayers().length,
+    maxPlayers: gameManager.settings.maxPlayers,
+    wolves: gameManager.settings.wolves,
+    enableWitch: gameManager.settings.enableWitch,
+    enableSeer: gameManager.settings.enableSeer,
+  }));
+}
+
+function addBotToRoom(code, count = 1, namePrefix = 'Bot') {
+  const gameManager = rooms.get(code);
+  if (!gameManager) return { success: false, message: 'Sala no encontrada.' };
+
+  const added = [];
+  for (let i = 0; i < count; i += 1) {
+    if (gameManager.state.getAllPlayers().length >= gameManager.settings.maxPlayers) break;
+    const playerId = generatePlayerId();
+    const player = {
+      id: playerId,
+      name: `${namePrefix} ${gameManager.state.getAllPlayers().length + 1}`,
+      socketId: `bot:${code}:${playerId}`,
+      role: null,
+    };
+    gameManager.state.addPlayer(player);
+    gameManager.addLog('bot:add', `Bot ${player.name} agregado a la sala`);
+    added.push(player);
+  }
+
+  io.to(code).emit('server:room:update', {
+    players: gameManager.state.getAllPlayers().map(p => ({ id: p.id, name: p.name })),
+    maxPlayers: gameManager.settings.maxPlayers,
+  });
+
+  return { success: true, added: added.length };
+}
+
+function closeRoom(code) {
+  const gameManager = rooms.get(code);
+  if (!gameManager) return { success: false, message: 'Sala no encontrada.' };
+
+  gameManager.addLog('room:close', 'Sala cerrada desde debug');
+  io.to(code).emit('server:room:closed', { roomCode: code });
+  rooms.delete(code);
+
+  for (const [socketId, session] of connectedPlayers.entries()) {
+    if (session.roomCode === code) connectedPlayers.delete(socketId);
+  }
+
+  return { success: true };
+}
+
+function getRoomActions(code) {
+  const gameManager = rooms.get(code);
+  if (!gameManager) return [];
+  return gameManager.getActionLog();
+}
+
+module.exports = {
+  registerHandlers,
+  getRoomSummaries,
+  addBotToRoom,
+  closeRoom,
+  getRoomActions,
+};

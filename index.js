@@ -8,12 +8,19 @@ const path = require('path');
 const os = require('os');
 const QRCode = require('qrcode');
 
-const { registerHandlers } = require('./src/network/socketHandlers');
+const {
+  registerHandlers,
+  getRoomSummaries,
+  addBotToRoom,
+  closeRoom,
+  getRoomActions,
+} = require('./src/network/socketHandlers');
 const { PORT, MIN_PLAYERS } = require('./config/gameConfig');
 
 // ─── Configuración del servidor ────────────────────────────────────────────────
 
 const app = express();
+app.use(express.json());
 const httpServer = http.createServer(app);
 const io = new Server(httpServer, {
   cors: {
@@ -30,6 +37,8 @@ const io = new Server(httpServer, {
 app.use('/host', express.static(path.join(__dirname, 'client/host')));
 // Interfaz del Jugador (movil/web)
 app.use('/', express.static(path.join(__dirname, 'client/player')));
+// Debug
+app.use('/debug', express.static(path.join(__dirname, 'client/debug')));
 // Recursos compartidos
 app.use('/shared', express.static(path.join(__dirname, 'client/shared')));
 
@@ -70,6 +79,24 @@ app.get('/config', (req, res) => {
   res.json({
     minPlayers: MIN_PLAYERS,
   });
+});
+
+// Debug API
+app.get('/debug/rooms', (req, res) => {
+  res.json({ rooms: getRoomSummaries() });
+});
+
+app.get('/debug/rooms/:code/actions', (req, res) => {
+  res.json({ actions: getRoomActions(req.params.code) });
+});
+
+app.post('/debug/rooms/:code/bot', (req, res) => {
+  const count = Number.parseInt(req.body?.count, 10) || 1;
+  res.json(addBotToRoom(req.params.code, count, req.body?.namePrefix));
+});
+
+app.post('/debug/rooms/:code/close', (req, res) => {
+  res.json(closeRoom(req.params.code));
 });
 
 // ─── WebSocket handlers ────────────────────────────────────────────────────────

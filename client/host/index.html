@@ -8,15 +8,15 @@
     @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap');
 
     :root {
-      --bg: #08080f;
-      --surface: #12121c;
-      --surface2: #1a1a28;
-      --border: rgba(255,255,255,0.07);
-      --gold: #c9a84c;
-      --gold-dim: #7a6530;
-      --wolf: #9040a8;
-      --text: #ddd8c8;
-      --text-dim: #7a7568;
+      --bg: #070a14;
+      --surface: #0f1424;
+      --surface2: #162038;
+      --border: rgba(255,255,255,0.08);
+      --gold: #e04b4b;
+      --gold-dim: #8d2b2b;
+      --wolf: #3c66c9;
+      --text: #e6e6f4;
+      --text-dim: #8a93b4;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -226,6 +226,17 @@
       border-radius: 20px;
       padding: 8px 16px;
       font-size: 16px;
+    }
+
+    #lobby-qr-block {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .room-code-display {
+      text-align: center;
     }
 
     .lobby-config {
