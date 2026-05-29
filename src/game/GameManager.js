@@ -81,6 +81,19 @@ class GameManager {
     this.timers = new Set();
     this.resetNightActions();
     this.witchState = { healUsed: false, poisonUsed: false };
+    this.actionLog = [];
+  }
+
+  addLog(action, message) {
+    this.actionLog.push({
+      action,
+      message,
+      at: Date.now(),
+    });
+  }
+
+  getActionLog() {
+    return this.actionLog.slice();
   }
 
   resetNightActions() {
@@ -105,6 +118,7 @@ class GameManager {
       duration: durationMs,
       publicState: this.state.getPublicState(),
     });
+    this.addLog('phase', `Cambio a fase ${phase}`);
   }
 
   startGame() {
@@ -134,6 +148,7 @@ class GameManager {
       player.role = ROLE_CARDS[roleName];
       player.team = roleName === 'werewolf' ? 'wolves' : 'villagers';
     });
+    this.addLog('roles:assigned', 'Roles asignados a jugadores');
   }
 
   sendRoleReveal() {
@@ -155,6 +170,7 @@ class GameManager {
     this.state.nightNumber += 1;
     this.emitPhase(PHASES.NIGHT, DURATIONS_MS.NIGHT);
     this.sendNightPrompts();
+    this.addLog('night:start', `Noche ${this.state.nightNumber} inicia`);
 
     const timer = setTimeout(() => {
       this.resolveNight();
@@ -236,6 +252,7 @@ class GameManager {
     if (actor.team === 'wolves' && action.actionType === 'wolf_kill') {
       if (!action.targetId) return { success: false, message: 'Selecciona un objetivo.' };
       this.nightActions.wolfVotes.set(playerId, action.targetId);
+      this.addLog('night:wolf', `Lobo ${actor.name} eligio objetivo`);
       this.tryResolveNightEarly();
       return { success: true };
     }
@@ -246,6 +263,7 @@ class GameManager {
       const target = this.state.players.find(p => p.id === action.targetId);
       if (!target) return { success: false, message: 'Objetivo invalido.' };
       this.nightActions.seerTarget = target.id;
+      this.addLog('night:seer', `Vidente ${actor.name} observo a ${target.name}`);
       const message = target.team === 'wolves'
         ? `${target.name} parece ser un lobo.`
         : `${target.name} es del pueblo.`;
@@ -257,6 +275,7 @@ class GameManager {
     if (actor.role?.name === 'witch') {
       if (action.actionType === 'skip') {
         this.nightActions.witchSkipped = true;
+        this.addLog('night:witch', `Bruja ${actor.name} no actuo`);
         this.tryResolveNightEarly();
         return { success: true };
       }
@@ -265,6 +284,7 @@ class GameManager {
         if (!action.targetId) return { success: false, message: 'Selecciona un objetivo.' };
         this.witchState.healUsed = true;
         this.nightActions.witchHealTarget = action.targetId;
+        this.addLog('night:witch', `Bruja ${actor.name} uso cura`);
         this.tryResolveNightEarly();
         return { success: true };
       }
@@ -273,6 +293,7 @@ class GameManager {
         if (!action.targetId) return { success: false, message: 'Selecciona un objetivo.' };
         this.witchState.poisonUsed = true;
         this.nightActions.witchPoisonTarget = action.targetId;
+        this.addLog('night:witch', `Bruja ${actor.name} uso veneno`);
         this.tryResolveNightEarly();
         return { success: true };
       }
@@ -334,12 +355,14 @@ class GameManager {
       if (victim && victim.isAlive) {
         victim.isAlive = false;
         this.io.to(this.roomCode).emit('server:player:died', { playerId: victim.id });
+        this.addLog('night:death', `Muere ${victim.name} (${k.cause})`);
       }
     });
 
     this.io.to(this.roomCode).emit('server:night:results', {
       killed: Array.from(uniqueKilled.values()),
     });
+    this.addLog('night:results', `Resultados de noche: ${uniqueKilled.size} bajas`);
 
     if (this.checkWin()) return;
     this.startDiscussion();
@@ -380,6 +403,7 @@ class GameManager {
     }
 
     this.votes.set(voterId, targetId);
+    this.addLog('vote:cast', `Voto emitido por ${voter?.name || voterId}`);
     this.emitVoteCount();
 
     const totalVoters = this.state.getAlivePlayers().length;
@@ -419,6 +443,7 @@ class GameManager {
           eliminated.isAlive = false;
           eliminatedName = eliminated.name;
           this.io.to(this.roomCode).emit('server:player:died', { playerId: eliminatedId });
+          this.addLog('vote:death', `Eliminado ${eliminated.name} por votacion`);
         }
       }
     }
@@ -428,6 +453,7 @@ class GameManager {
       eliminated: eliminatedId,
       eliminatedName,
     });
+    this.addLog('vote:result', eliminatedName ? `Eliminado ${eliminatedName}` : 'Empate sin eliminacion');
 
     if (this.checkWin()) return;
     this.startNight();

@@ -167,6 +167,13 @@
     state.socket.on('server:game:over', ({ winner, reason, rolesReveal }) => {
       renderGameOver(winner, reason, rolesReveal);
     });
+
+    state.socket.on('server:room:closed', () => {
+      showToast('La sala fue cerrada por el narrador.', 5000);
+      state.playerId = null;
+      state.roomCode = null;
+      showScreen('join');
+    });
   }
 
   // ─── Unirse a la Sala ──────────────────────────────────────────────────────
